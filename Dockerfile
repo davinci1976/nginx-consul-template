@@ -18,7 +18,9 @@ ENV NX_FILE /etc/nginx/conf.d/app.conf
 #Default Variables
 ENV CONSUL consul:8500
 ENV SERVICE consul-8500
-
+ENV REVERSE "" 
+ENV METHOD "least_conn;"
+ENV PROTOCOL "http"
 # Command will
 # 1. Write Consul Template File
 # 2. Start Nginx
@@ -27,14 +29,16 @@ ENV SERVICE consul-8500
 CMD echo "" > /etc/nginx/conf.d/app.conf;
 
 CMD echo "upstream app {                 \n\
-  least_conn;                            \n\
+  $METHOD                                \n\
   {{range service \"$SERVICE\"}}         \n\
   server  {{.Address}}:{{.Port}};        \n\
   {{else}}server 127.0.0.1:65535;{{end}} \n\
 }                                        \n\
 server {                                 \n\
-  location / {                           \n\
-    proxy_pass http://app;               \n\
+  location /$REVERSE {                   \n\
+    proxy_pass $PROTOCOL://app;          \n\
+    rewrite  ^/$REVERSE(.*)  /\$1 break; \n\
+    proxy_set_header   Host \$host;      \n\
   }                                      \n\
 }" > $CT_FILE; \
 /usr/sbin/nginx -c /etc/nginx/nginx.conf \
